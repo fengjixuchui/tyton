@@ -28,7 +28,7 @@ int in_module_whitelist(const char *mod_name){
 
 	name_len = strlen(mod_name);
 
-	for (i = 0; i < sizeof(mod_wl)/sizeof(mod_wl[0]); i++){
+	for (i = 0; i < ARRAY_SIZE(mod_wl); i++){
 		if (name_len != strlen(mod_wl[i]))
 			continue;
 		if (strncmp(mod_name, mod_wl[i], name_len) == 0)
@@ -141,13 +141,9 @@ static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, int pf
 
 #else
 
-static struct list_head *nf_find_hook_list(struct net *net, int pf, unsigned int hooknum, struct net_device *dev){
+static struct list_head *nf_find_hook_list(struct net *net, int pf, unsigned int hooknum){
 	if (pf != NFPROTO_NETDEV)
 		return &net->nf.hooks[pf][hooknum];
-	if (hooknum == NF_NETDEV_INGRESS){
-		if (dev && dev_net(dev) == net)
-			return &dev->nf_hooks_ingress;
-	}
 	return NULL;
 }
 
@@ -183,12 +179,15 @@ int analyze_netfilter(void){
 
 int analyze_netfilter(void){
 	int i, j;
+	struct list_head *hook_list;
 
 	INFO("Analyzing Netfilter Hooks\n");
 
 	for (i = 0; i < NFPROTO_NUMPROTO; i++){
 		for (j = 0; j < NF_MAX_HOOKS; j++){
-			search_hooks(nf_find_hook_list(&init_net, i, j, NULL));
+			hook_list = nf_find_hook_list(&init_net, i, j);
+			if (hook_list)
+				search_hooks(hook_list);
 		}
 	}
 	return 0;
